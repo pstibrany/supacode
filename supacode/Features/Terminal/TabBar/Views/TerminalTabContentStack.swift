@@ -8,7 +8,7 @@ struct TerminalTabContentStack<Content: View>: View {
   init(
     tabs: [TerminalTabItem],
     selectedTabId: TerminalTabID,
-    @ViewBuilder content: @escaping (TerminalTabID) -> Content
+    @ViewBuilder content: @escaping (TerminalTabID) -> Content,
   ) {
     self.tabs = tabs
     self.selectedTabId = selectedTabId
@@ -17,8 +17,16 @@ struct TerminalTabContentStack<Content: View>: View {
 
   var body: some View {
     if let selectedTabID = Self.selectedTabID(in: tabs, selectedTabId: selectedTabId) {
-      content(selectedTabID)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      ZStack {
+        ForEach(tabs) { tab in
+          let isSelected = tab.id == selectedTabID
+          content(tab.id)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .opacity(isSelected ? 1 : 0)
+            .allowsHitTesting(isSelected)
+            .accessibilityHidden(!isSelected)
+        }
+      }
     }
   }
 
