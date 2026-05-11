@@ -1,0 +1,43 @@
+name: Build Branch Artifact
+
+on:
+  push:
+    branches:
+      - pstibrany/fix-ghostty-tab-redraw
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      MISE_HTTP_TIMEOUT: 120
+      MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-macos
+      - run: make build-app
+      - name: Locate built app
+        id: app
+        shell: bash
+        run: |
+          settings="$(xcodebuild -workspace supacode.xcworkspace -scheme supacode -configuration Debug -showBuildSettings -json 2>/dev/null)"
+          build_dir="$(echo "$settings" | jq -r '.[0].buildSettings.BUILT_PRODUCTS_DIR')"
+          product="$(echo "$settings" | jq -r '.[0].buildSettings.FULL_PRODUCT_NAME')"
+          echo "path=$build_dir/$product" >> "$GITHUB_OUTPUT"
+      - name: Zip app
+        shell: bash
+        run: |
+          ditto -c -k --keepParent "${{ steps.app.outputs.path }}" supacode-debug.app.zip
+      - uses: actions/upload-artifact@v6
+        with:
+          name: supacode-debug-app
+          path: supacode-debug.app.zip
